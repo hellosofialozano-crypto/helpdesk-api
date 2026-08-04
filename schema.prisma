@@ -1,0 +1,122 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  AGENT
+  ADMIN
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String   @db.VarChar(120)
+  email     String   @unique @db.VarChar(255)
+  password  String   @db.VarChar(255)
+  role      Role     @default(USER)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ticketsCreated  Ticket[]         @relation("CreatedTickets")
+  ticketsAssigned Ticket[]         @relation("AssignedTickets")
+  comments        Comment[]
+  history         TicketHistory[]
+
+  @@index([email])
+  @@map("users")
+}
+
+model Ticket {
+  id            String           @id @default(uuid())
+  ticketNumber  Int              @unique @default(autoincrement())
+
+  title         String           @db.VarChar(150)
+  description   String           @db.Text
+
+  status        TicketStatus     @default(OPEN)
+  priority      TicketPriority   @default(MEDIUM)
+
+  createdById   String
+  assignedToId  String?
+
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  createdBy     User             @relation("CreatedTickets", fields: [createdById], references: [id])
+  assignedTo    User?            @relation("AssignedTickets", fields: [assignedToId], references: [id])
+
+  comments      Comment[]
+  history       TicketHistory[]
+
+  @@index([status])
+  @@index([priority])
+  @@index([createdById])
+  @@index([assignedToId])
+  @@index([createdAt])
+  @@index([status, priority])
+
+  @@map("tickets")
+}
+
+model Comment {
+  id         String   @id @default(uuid())
+
+  content    String   @db.Text
+
+  ticketId   String
+  authorId   String
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  ticket     Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author     User     @relation(fields: [authorId], references: [id])
+
+  @@index([ticketId])
+  @@index([authorId])
+  @@index([createdAt])
+
+  @@map("comments")
+}
+
+model TicketHistory {
+  id          String   @id @default(uuid())
+
+  ticketId    String
+  changedById String
+
+  field       String   @db.VarChar(100)
+  oldValue    String?  @db.Text
+  newValue    String?  @db.Text
+
+  createdAt   DateTime @default(now())
+
+  ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  changedBy   User     @relation(fields: [changedById], references: [id])
+
+  @@index([ticketId])
+  @@index([changedById])
+  @@index([createdAt])
+
+  @@map("ticket_history")
+}
