@@ -222,10 +222,8 @@ async function createTickets(users) {
   for (const ticketData of TICKETS) {
 
 
-
     const ticket =
       await prisma.ticket.create({
-
 
         data: {
 
@@ -246,10 +244,8 @@ async function createTickets(users) {
             ticketData.status,
 
 
-
           createdById:
             users[ticketData.customer].id,
-
 
 
           assignedToId:
@@ -261,15 +257,20 @@ async function createTickets(users) {
 
             create: {
 
-              action: 'CREATED',
-
-
-              description:
-                `Ticket criado por ${users[ticketData.customer].name}`,
-
-
-              userId:
+              changedById:
                 users[ticketData.customer].id,
+
+
+              field:
+                'status',
+
+
+              oldValue:
+                null,
+
+
+              newValue:
+                ticketData.status,
 
             },
 
@@ -277,7 +278,6 @@ async function createTickets(users) {
 
 
         },
-
 
       });
 
@@ -298,7 +298,6 @@ async function createTickets(users) {
 
   return createdTickets;
 
-
 }
 /**
  * ===============================
@@ -312,9 +311,9 @@ const COMMENTS = [
   {
     ticketIndex: 0,
 
-    user: 'agent1',
+    author: 'agent1',
 
-    message:
+    content:
       'Estamos analisando o erro informado. Nossa equipe técnica já foi acionada.',
   },
 
@@ -322,9 +321,9 @@ const COMMENTS = [
   {
     ticketIndex: 0,
 
-    user: 'customer1',
+    author: 'customer1',
 
-    message:
+    content:
       'Obrigado pelo retorno. O problema começou hoje pela manhã.',
   },
 
@@ -332,9 +331,9 @@ const COMMENTS = [
   {
     ticketIndex: 1,
 
-    user: 'agent2',
+    author: 'agent2',
 
-    message:
+    content:
       'Identificamos uma inconsistência no cadastro e estamos corrigindo.',
   },
 
@@ -342,9 +341,9 @@ const COMMENTS = [
   {
     ticketIndex: 2,
 
-    user: 'agent2',
+    author: 'agent2',
 
-    message:
+    content:
       'Incidente crítico identificado. Trabalhando na normalização do serviço.',
   },
 
@@ -352,9 +351,9 @@ const COMMENTS = [
   {
     ticketIndex: 3,
 
-    user: 'agent1',
+    author: 'agent1',
 
-    message:
+    content:
       'Dúvida esclarecida. Chamado resolvido.',
   },
 
@@ -375,7 +374,6 @@ async function createComments(
   for (const commentData of COMMENTS) {
 
 
-
     const ticket =
       tickets[commentData.ticketIndex];
 
@@ -386,18 +384,16 @@ async function createComments(
 
         data: {
 
-
-          message:
-            commentData.message,
+          content:
+            commentData.content,
 
 
           ticketId:
             ticket.id,
 
 
-          userId:
-            users[commentData.user].id,
-
+          authorId:
+            users[commentData.author].id,
 
         },
 
@@ -410,7 +406,7 @@ async function createComments(
 
 
     console.log(
-      `✔ Comentário criado no ticket ${ticket.id}`
+      `✔ Comentário criado no ticket ${ticket.ticketNumber}`
     );
 
 
@@ -420,7 +416,6 @@ async function createComments(
 
   return createdComments;
 
-
 }
 
 
@@ -429,7 +424,7 @@ async function createComments(
 
 /**
  * ===============================
- * HISTORY / AUDITORIA
+ * HISTORY
  * ===============================
  */
 
@@ -439,51 +434,50 @@ const STATUS_CHANGES = [
   {
     ticketIndex: 0,
 
-    user: 'agent1',
+    changedBy: 'agent1',
 
-    from: 'OPEN',
+    oldValue: 'OPEN',
 
-    to: 'IN_PROGRESS',
+    newValue: 'IN_PROGRESS',
   },
 
 
   {
     ticketIndex: 1,
 
-    user: 'agent2',
+    changedBy: 'agent2',
 
-    from: 'IN_PROGRESS',
+    oldValue: 'IN_PROGRESS',
 
-    to: 'RESOLVED',
+    newValue: 'RESOLVED',
   },
 
 
   {
     ticketIndex: 2,
 
-    user: 'agent2',
+    changedBy: 'agent2',
 
-    from: 'OPEN',
+    oldValue: 'OPEN',
 
-    to: 'IN_PROGRESS',
+    newValue: 'IN_PROGRESS',
   },
 
 ];
 
 
 
-async function createStatusHistory(
+async function createHistory(
   tickets,
   users
 ) {
 
 
-  const history = [];
+  const histories = [];
 
 
 
   for (const change of STATUS_CHANGES) {
-
 
 
     const ticket =
@@ -491,30 +485,29 @@ async function createStatusHistory(
 
 
 
-    const item =
-      await prisma.history.create({
+    const history =
+      await prisma.ticketHistory.create({
 
         data: {
-
-
-          action:
-            'STATUS_CHANGED',
-
-
-
-          description:
-            `Status alterado de ${change.from} para ${change.to}`,
-
-
 
           ticketId:
             ticket.id,
 
 
+          changedById:
+            users[change.changedBy].id,
 
-          userId:
-            users[change.user].id,
 
+          field:
+            'status',
+
+
+          oldValue:
+            change.oldValue,
+
+
+          newValue:
+            change.newValue,
 
         },
 
@@ -522,12 +515,12 @@ async function createStatusHistory(
 
 
 
-    history.push(item);
+    histories.push(history);
 
 
 
     console.log(
-      `✔ Histórico criado para ticket ${ticket.id}`
+      `✔ Histórico criado para ticket ${ticket.ticketNumber}`
     );
 
 
@@ -535,8 +528,7 @@ async function createStatusHistory(
 
 
 
-  return history;
-
+  return histories;
 
 }
 
@@ -570,7 +562,7 @@ async function printSummary() {
 
 
   const history =
-    await prisma.history.count();
+    await prisma.ticketHistory.count();
 
 
 
@@ -582,17 +574,15 @@ async function printSummary() {
 
   console.log(`
 
-Usuários: ${users}
+Usuários criados: ${users}
 
-Tickets: ${tickets}
+Tickets criados: ${tickets}
 
-Comentários: ${comments}
+Comentários criados: ${comments}
 
-Históricos: ${history}
+Históricos criados: ${history}
 
 `);
-
-
 
 }
 
@@ -648,12 +638,6 @@ async function main() {
 
 
 
-      console.log(
-        '✔ Usuários criados'
-      );
-
-
-
       printSection(
         'CRIANDO TICKETS'
       );
@@ -686,11 +670,10 @@ async function main() {
 
 
 
-      await createStatusHistory(
+      await createHistory(
         tickets,
         users
       );
-
 
 
     }
@@ -713,11 +696,8 @@ main()
 
 
   console.error(
-
     '\n❌ Erro durante seed:',
-
     error
-
   );
 
 
